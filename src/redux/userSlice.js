@@ -1,27 +1,51 @@
-import {createSlice} from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const userSlice = createSlice({
-    name:"user",
-    initialState:{
-        authUser:null,
-        otherUsers:null,
-        selectedUser:null,
-        onlineUsers:null,
+    name: 'user',
+    initialState: {
+        authUser: null,
+        selectedUser: null,
+        otherUsers: [],
+        onlineUsers: [],
+        usersLoading: false,
+        usersError: null,
     },
-    reducers:{
-        setAuthUser:(state,action)=>{
+    reducers: {
+        setAuthUser: (state, action) => {
             state.authUser = action.payload;
         },
-        setOtherUsers:(state, action)=>{
-            state.otherUsers = action.payload;
-        },
-        setSelectedUser:(state,action)=>{
+        setSelectedUser: (state, action) => {
             state.selectedUser = action.payload;
         },
-        setOnlineUsers:(state,action)=>{
+        setOtherUsers: (state, action) => {
+            state.otherUsers = action.payload;
+        },
+        setOnlineUsers: (state, action) => {
             state.onlineUsers = action.payload;
+        },
+        setUsersLoading: (state, action) => {
+            state.usersLoading = action.payload;
+        },
+        setUsersError: (state, action) => {
+            state.usersError = action.payload;
+        },
+        clearUsers: (state) => {
+            state.otherUsers = [];
+            state.selectedUser = null;
+            state.usersLoading = false;
+            state.usersError = null;
         }
     }
 });
-export const {setAuthUser,setOtherUsers,setSelectedUser,setOnlineUsers} = userSlice.actions;
+
+export const { 
+    setAuthUser, 
+    setSelectedUser, 
+    setOtherUsers, 
+    setOnlineUsers,
+    setUsersLoading,
+    setUsersError,
+    clearUsers
+} = userSlice.actions;
+
 export default userSlice.reducer;

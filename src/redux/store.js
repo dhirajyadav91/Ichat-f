@@ -1,7 +1,9 @@
+// redux/store.js - FIXED VERSION
 import {combineReducers, configureStore} from "@reduxjs/toolkit";
 import userReducer from "./userSlice.js";
 import messageReducer from "./messageSlice.js";
-import socketReducer from "./socketSlice.js";
+// import socketReducer from "./socketSlice.js"; // ❌ COMMENT OUT/REMOVE THIS LINE
+
 import {
     persistReducer,
     FLUSH,
@@ -20,16 +22,15 @@ import {
   }
 
   const rootReducer = combineReducers({
-    user:userReducer,
-    message:messageReducer,
-    socket:socketReducer
+    user: userReducer,
+    message: messageReducer,
+    // socket: socketReducer // ❌ REMOVE THIS LINE
  })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)
 
-
 const store = configureStore({
-    reducer:persistedReducer,
+    reducer: persistedReducer,
     middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -37,4 +38,5 @@ const store = configureStore({
       },
     }),
 });
+
 export default store;

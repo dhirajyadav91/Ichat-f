@@ -1,72 +1,59 @@
 import Signup from './components/Signup';
 import './App.css';
-import {createBrowserRouter, RouterProvider} from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import HomePage from './components/HomePage';
 import Login from './components/Login';
 import { useEffect, useState } from 'react';
-import {useSelector,useDispatch} from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import io from "socket.io-client";
-import { setSocket } from './redux/socketSlice';
 import { setOnlineUsers } from './redux/userSlice';
 
-// import { BASE_URL } from '.';
-
-
 const router = createBrowserRouter([
-  {
-    path:"/",
-    element:<HomePage/>
-  },
-  {
-    path:"/signup",
-    element:<Signup/>
-  },
-  {
-    path:"/login",
-    element:<Login/>
-  },
+  { path: "/", element: <HomePage /> },
+  { path: "/signup", element: <Signup /> },
+  { path: "/login", element: <Login /> },
+]);
 
-])
-
-function App() { 
-  const {authUser} = useSelector(store=>store.user);
-  const {socket} = useSelector(store=>store.socket);
+function App() {
+  const { authUser } = useSelector((store) => store.user);
   const dispatch = useDispatch();
+  const [socket, setSocketState] = useState(null);
 
-  useEffect(()=>{
-    if(authUser){
-      const socketio = io(`${process.env.REACT_APP_API_URL}`, {
-          query:{
-            userId:authUser._id
-          }
-      });
-      dispatch(setSocket(socketio));
+  // ✅ Load backend URL safely from .env
+  const API_URL = import.meta.env?.VITE_API_URL?.trim() || "http://localhost:8080";
 
-      socketio?.on('getOnlineUsers', (onlineUsers)=>{
-        dispatch(setOnlineUsers(onlineUsers))
+  useEffect(() => {
+    // ✅ Ensure user exists before connecting socket
+    if (authUser?._id) {
+      const socketio = io(API_URL, {
+        query: { userId: authUser._id },
+        transports: ["websocket", "polling"],
+        withCredentials: true,
       });
+
+      setSocketState(socketio);
+
+      socketio.on("getOnlineUsers", (onlineUsers) => {
+        dispatch(setOnlineUsers(onlineUsers));
+      });
+
+      // ✅ Cleanup socket connection on logout/unmount
       return () => socketio.close();
-    }else{
-      if(socket){
+    } else {
+      // ✅ If user logs out, close socket
+      if (socket) {
         socket.close();
-        dispatch(setSocket(null));
+        setSocketState(null);
       }
     }
+  }, [authUser]);
 
-  },[authUser]);
-
-  console.log("ENV =>", process.env.REACT_APP_API_URL);
-
-
-//   console.log("ENV test =>", import.meta.env);
-// console.log("API_URL =>", import.meta.env.VITE_API_URL);
-
+  console.log("✅ ENV (Frontend) =>", API_URL);
 
   return (
     <div className="p-4 h-screen flex items-center justify-center">
-      <RouterProvider router={router}/>
+      <RouterProvider router={router} />
     </div>
-
   );
 }
 
