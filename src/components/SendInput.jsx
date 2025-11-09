@@ -68,8 +68,9 @@ const SendInput = () => {
             dispatch(addMessage(tempFileMessage));
             setShowAttachmentMenu(false);
 
+            // ✅ FIXED: Use correct endpoint - remove /api/v1 since baseURL already has it
             const res = await axiosInstance.post(
-                `/api/v1/message/send-file/${selectedUser._id}`,
+                `/message/send-file`, // ✅ CHANGED: Simple endpoint
                 formData,
                 {
                     headers: { 'Content-Type': 'multipart/form-data' },
@@ -112,7 +113,7 @@ const SendInput = () => {
         e.target.value = ''; // Reset file input
     };
 
-    // ✅ FIXED: Message send with proper status handling
+    // ✅ FIXED: Message send - Use only socket, no duplicate API call
     const onSubmitHandler = async (e) => {
         e.preventDefault();
         if (!message.trim() || !selectedUser || !authUser) return;
@@ -141,38 +142,41 @@ const SendInput = () => {
         setShowEmojiPicker(false);
 
         try {
-            // ✅ Send via socket with temp ID
-            const messageData = {
-                message: originalMessage.trim(),
-                receiverId: selectedUser._id,
-                senderId: authUser._id,
-                tempId: tempId, // ✅ IMPORTANT: Send temp ID to backend
-                timestamp: new Date().toISOString()
-            };
-            
-            const socketSent = sendMessage(messageData);
-            console.log('📤 Socket send result:', socketSent);
+            // ✅ METHOD 1: Send via socket only (recommended)
+            if (isConnected) {
+                const messageData = {
+                    message: originalMessage.trim(),
+                    receiverId: selectedUser._id,
+                    senderId: authUser._id,
+                    tempId: tempId,
+                    timestamp: new Date().toISOString()
+                };
+                
+                const socketSent = sendMessage(messageData);
+                console.log('📤 Socket send result:', socketSent);
 
-            if (!socketSent && !isConnected) {
-                console.log('⚠️ Socket not available, updating status manually');
-                // Fallback: mark as sent after delay
-                setTimeout(() => {
-                    dispatch(updateMessageStatus({
-                        messageId: tempId,
-                        status: 'sent'
-                    }));
-                }, 1000);
+                if (socketSent) {
+                    // Socket will handle the delivery status via events
+                    console.log('✅ Message sent via socket');
+                    return;
+                }
             }
 
-            // ✅ Also send via API for persistence
+            // ✅ METHOD 2: Fallback - Send via API if socket fails
+            console.log('🔄 Socket not available, trying API...');
+            
+            // ✅ FIXED: Use correct endpoint - remove /api/v1
             const res = await axiosInstance.post(
-                `/api/v1/message/send/${selectedUser._id}`,
-                { message: originalMessage.trim() }
+                `/message/send`, // ✅ CHANGED: Simple endpoint
+                { 
+                    message: originalMessage.trim(),
+                    receiverId: selectedUser._id 
+                }
             );
 
             console.log("✅ Message sent successfully via API:", res.data);
 
-            // If API returns real message, update the temp message
+            // Update the temp message with real data
             if (res.data.newMessage && res.data.newMessage._id) {
                 dispatch(updateMessageStatus({
                     messageId: tempId,
@@ -190,7 +194,12 @@ const SendInput = () => {
                 status: 'failed'
             }));
             
-            toast.error('Failed to send message');
+            // Show specific error message
+            if (error.response?.status === 404) {
+                toast.error('Message endpoint not found. Check backend API.');
+            } else {
+                toast.error('Failed to send message');
+            }
         }
     };
 
@@ -226,7 +235,7 @@ const SendInput = () => {
         <div className="relative border-t border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
             {/* Socket Status Indicator */}
             <div className={`text-xs px-4 py-1 ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                Socket: {isConnected ? '✅ Connected' : '❌ Disconnected'}
+                {isConnected ? '✅ Connected' : '❌ Disconnected'}
             </div>
 
             {/* Upload Progress */}

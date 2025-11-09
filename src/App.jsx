@@ -8,11 +8,19 @@ import { useSelector, useDispatch } from "react-redux";
 import io from "socket.io-client";
 import { setOnlineUsers } from './redux/userSlice';
 
-const router = createBrowserRouter([
-  { path: "/", element: <HomePage /> },
-  { path: "/signup", element: <Signup /> },
-  { path: "/login", element: <Login /> },
-]);
+// ✅ Add future flag config inside createBrowserRouter
+const router = createBrowserRouter(
+  [
+    { path: "/", element: <HomePage /> },
+    { path: "/signup", element: <Signup /> },
+    { path: "/login", element: <Login /> },
+  ],
+  {
+    future: {
+      v7_startTransition: true, // ✅ Enable smoother transitions early
+    },
+  }
+);
 
 function App() {
   const { authUser } = useSelector((store) => store.user);
@@ -23,7 +31,6 @@ function App() {
   const API_URL = import.meta.env?.VITE_API_URL?.trim() || "http://localhost:8080";
 
   useEffect(() => {
-    // ✅ Ensure user exists before connecting socket
     if (authUser?._id) {
       const socketio = io(API_URL, {
         query: { userId: authUser._id },
@@ -37,10 +44,8 @@ function App() {
         dispatch(setOnlineUsers(onlineUsers));
       });
 
-      // ✅ Cleanup socket connection on logout/unmount
       return () => socketio.close();
     } else {
-      // ✅ If user logs out, close socket
       if (socket) {
         socket.close();
         setSocketState(null);

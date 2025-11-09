@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { addMessage, updateMessageStatus, updateMessagesStatus } from '../redux/messageSlice';
@@ -14,9 +14,11 @@ const useSocket = () => {
       return;
     }
 
-    const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    // ✅ FIXED: Use import.meta.env for Vite instead of process.env
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     
     console.log("🔌 Socket connecting for user:", authUser.fullName);
+    console.log("🔌 Socket URL:", API_URL);
     
     try {
       socketRef.current = io(API_URL, {
@@ -42,7 +44,7 @@ const useSocket = () => {
         console.error('💥 Socket connection error:', error);
       });
 
-      // ✅ FIXED: Listen for message sent status
+      // ✅ Listen for message sent status
       socketRef.current.on('messageSent', (data) => {
         console.log('📤 MESSAGE SENT EVENT RECEIVED:', data);
         if (data.messageId) {
@@ -53,7 +55,7 @@ const useSocket = () => {
         }
       });
 
-      // ✅ FIXED: Listen for message delivery status
+      // ✅ Listen for message delivery status
       socketRef.current.on('messageDelivered', (data) => {
         console.log('📨 MESSAGE DELIVERED EVENT RECEIVED:', data);
         if (data.messageId) {
@@ -64,7 +66,7 @@ const useSocket = () => {
         }
       });
 
-      // ✅ FIXED: Listen for message read status
+      // ✅ Listen for message read status
       socketRef.current.on('messageRead', (data) => {
         console.log('👀 MESSAGE READ EVENT RECEIVED:', data);
         if (data.messageIds && Array.isArray(data.messageIds)) {
@@ -75,7 +77,7 @@ const useSocket = () => {
         }
       });
 
-      // ✅ FIXED: Listen for message seen status
+      // ✅ Listen for message seen status
       socketRef.current.on('messageSeen', (data) => {
         console.log('👁️ MESSAGE SEEN EVENT RECEIVED:', data);
         if (data.messageIds && Array.isArray(data.messageIds)) {
@@ -86,16 +88,18 @@ const useSocket = () => {
         }
       });
 
-      // ✅ FIXED: Listen for new messages
+      // ✅ Listen for new messages
       socketRef.current.on('newMessage', (message) => {
         console.log('📩 NEW MESSAGE RECEIVED:', message);
         dispatch(addMessage(message));
       });
 
-      // ✅ Debug: Log all socket events
-      socketRef.current.onAny((eventName, ...args) => {
-        console.log(`🎯 Socket event [${eventName}]:`, args);
-      });
+      // ✅ Debug: Log all socket events (only in development)
+      if (import.meta.env.DEV) {
+        socketRef.current.onAny((eventName, ...args) => {
+          console.log(`🎯 Socket event [${eventName}]:`, args);
+        });
+      }
 
     } catch (error) {
       console.error('💥 Socket initialization error:', error);
@@ -127,15 +131,15 @@ const useSocket = () => {
     }
   };
 
-  // ✅ FIXED: Function to mark messages as read
+  // ✅ Function to mark messages as read
   const markAsRead = (messageIds, senderId) => {
     if (socketRef.current && socketRef.current.connected && authUser) {
       try {
         const ids = Array.isArray(messageIds) ? messageIds : [messageIds];
         const data = {
           messageIds: ids,
-          receiverId: authUser._id, // Current user is marking as read
-          senderId: senderId // The user who sent these messages
+          receiverId: authUser._id,
+          senderId: senderId
         };
         
         socketRef.current.emit('markAsRead', data);
@@ -151,15 +155,15 @@ const useSocket = () => {
     }
   };
 
-  // ✅ FIXED: Function to mark messages as seen
+  // ✅ Function to mark messages as seen
   const markAsSeen = (messageIds, senderId) => {
     if (socketRef.current && socketRef.current.connected && authUser) {
       try {
         const ids = Array.isArray(messageIds) ? messageIds : [messageIds];
         const data = {
           messageIds: ids,
-          receiverId: authUser._id, // Current user is marking as seen
-          senderId: senderId // The user who sent these messages
+          receiverId: authUser._id,
+          senderId: senderId
         };
         
         socketRef.current.emit('markAsSeen', data);

@@ -1,8 +1,9 @@
+// hooks/useGetMessages.jsx - FIXED ENDPOINTS
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import axiosInstance from "../api/axiosConfig";
 import { setMessages, setLoading, setError, addMessages, resetMessages } from "../redux/messageSlice";
-import toast from 'react-hot-toast'; // ✅ ADD THIS IMPORT
+import toast from 'react-hot-toast';
 
 const useGetMessages = () => {
   const { selectedUser } = useSelector((store) => store.user);
@@ -10,7 +11,7 @@ const useGetMessages = () => {
   const dispatch = useDispatch();
   const [isFetching, setIsFetching] = useState(false);
 
-  // ✅ IMPROVED: loadMore function for pagination
+  // ✅ FIXED: Remove /api/v1 from endpoints since baseURL already includes it
   const loadMore = async () => {
     if (!selectedUser?._id || !hasMore || isFetching) {
       console.log('⏸️ Cannot load more:', { 
@@ -25,7 +26,8 @@ const useGetMessages = () => {
       setIsFetching(true);
       console.log(`📩 Loading more messages for: ${selectedUser._id}, offset: ${messages.length}`);
       
-      const res = await axiosInstance.get(`/api/v1/message/${selectedUser._id}`, {
+      // ✅ FIXED: Use only /message since baseURL has /api/v1
+      const res = await axiosInstance.get(`/message/${selectedUser._id}`, {
         params: {
           offset: messages.length,
           limit: 20
@@ -40,12 +42,12 @@ const useGetMessages = () => {
           console.log(`✅ Loaded ${newMessages.length} more messages, total: ${messages.length + newMessages.length}`);
         } else {
           console.log("📭 No more messages to load");
-          toast.success("All messages loaded"); // ✅ Optional: notify user
+          toast.success("All messages loaded");
         }
       }
     } catch (error) {
       console.error("❌ Error loading more messages:", error);
-      toast.error("Failed to load older messages"); // ✅ NOW THIS WILL WORK
+      toast.error("Failed to load older messages");
     } finally {
       setIsFetching(false);
     }
@@ -65,7 +67,7 @@ const useGetMessages = () => {
       const token = localStorage.getItem('authToken');
       if (!token) {
         console.log("🔐 No token found, skipping messages fetch");
-        toast.error("Please login again"); // ✅ ADDED: User feedback
+        toast.error("Please login again");
         return;
       }
 
@@ -74,12 +76,13 @@ const useGetMessages = () => {
         dispatch(setLoading(true));
         dispatch(setError(null));
 
-        console.log(`📩 Fetching messages from: /api/v1/message/${selectedUser._id}`);
+        // ✅ FIXED: Use only /message since baseURL has /api/v1
+        console.log(`📩 Fetching messages from: /message/${selectedUser._id}`);
         console.log("🔐 Token present:", !!token);
 
-        const res = await axiosInstance.get(`/api/v1/message/${selectedUser._id}`, {
+        const res = await axiosInstance.get(`/message/${selectedUser._id}`, {
           params: {
-            limit: 50 // ✅ Get recent messages first
+            limit: 50
           }
         });
 
@@ -88,7 +91,6 @@ const useGetMessages = () => {
           dispatch(setMessages(messagesData));
           console.log(`✅ Loaded ${messagesData.length} messages for ${selectedUser.fullName}`);
           
-          // ✅ Optional: Show success toast for large message loads
           if (messagesData.length > 20) {
             toast.success(`Loaded ${messagesData.length} messages`);
           }
@@ -97,44 +99,43 @@ const useGetMessages = () => {
         }
       } catch (error) {
         console.error("❌ Error fetching messages:", error);
-        const errorMessage =
-          error.response?.data?.message || "Failed to load messages. Please try again.";
-        dispatch(setError(errorMessage));
         
-        // ✅ Show error toast to user
-        toast.error(errorMessage);
-
-        // Set empty array on error
-        dispatch(setMessages([]));
+        // ✅ BETTER ERROR HANDLING
+        let errorMessage = "Failed to load messages. Please try again.";
         
-        if (error.response?.status === 401) {
-          console.log("🔐 Authentication failed in messages fetch");
+        if (error.response?.status === 404) {
+          errorMessage = "Messages endpoint not found. Please check API configuration.";
+          console.error("🔍 404 Error - Check if backend has /api/v1/message/:userId endpoint");
+        } else if (error.response?.status === 401) {
+          errorMessage = "Session expired. Please login again.";
           localStorage.removeItem('authToken');
-          toast.error("Session expired. Please login again.");
           setTimeout(() => {
             window.location.href = '/login';
           }, 2000);
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
         }
+        
+        dispatch(setError(errorMessage));
+        toast.error(errorMessage);
+        dispatch(setMessages([]));
       } finally {
         dispatch(setLoading(false));
         setIsFetching(false);
       }
     };
 
-    // ✅ Add slight delay to prevent rapid API calls
     const timeoutId = setTimeout(fetchMessages, 100);
     
     return () => {
       clearTimeout(timeoutId);
-      // Don't reset messages here to avoid flickering during user switch
     };
   }, [selectedUser?._id, dispatch]);
 
-  // ✅ RETURN both isFetching and loadMore
   return { 
     isFetching, 
     loadMore,
-    hasMore // ✅ Also return hasMore for UI
+    hasMore
   };
 };
 
